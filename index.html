@@ -1,10 +1,11 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nasze Wspomnienia</title>
-    <link href="https://jsdelivr.net" rel="stylesheet">
+    <!-- Stabilny i działający link do wyglądu witryny -->
+    <link href="https://cloudflare.com" rel="stylesheet">
     <script src="https://jsdelivr.net"></script>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
@@ -127,7 +128,14 @@
             const title = document.getElementById('title').value;
             const description = document.getElementById('description').value;
             const fileInput = document.getElementById('photo');
-            const file = fileInput.files;
+            const file = fileInput.files[0]; // Zabezpieczenie przed błędem split
+
+            if (!file) {
+                alert("Proszę wybrać plik graficzny!");
+                btn.disabled = false;
+                btn.innerText = "Zapisz wspomnienie ✨";
+                return;
+            }
 
             try {
                 const fileExt = file.name.split('.').pop();
@@ -144,9 +152,9 @@
 
                 document.getElementById('memory-form').reset();
                 fetchMemories();
-                alert("Wspomnienie dodane! 🎉");
+                alert("Wspomnienie dodane pomyślnie! 🎉");
             } catch (error) {
-                alert("Błąd: " + error.message);
+                alert("Błąd zapisu: " + error.message);
             } finally {
                 btn.disabled = false;
                 btn.innerText = "Zapisz wspomnienie ✨";
@@ -155,4 +163,12 @@
     </script>
 </body>
 </html>
+";
+            
+                
+
+                
+            
+        
+    
 
