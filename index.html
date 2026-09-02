@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nasze Wspomnienia</title>
+    <!-- Tailwind CSS do szybkiego i ładnego wyglądu -->
+    <script src="https://jsdelivr.net"></script>
+    <!-- Oficjalna biblioteka Supabase -->
+    <script src="https://jsdelivr.net"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+    <!-- EKRAN LOGOWANIA -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen bg-gray-100">
+        <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-sm text-center">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">🔒 Prywatne Wspomnienia</h1>
+            <input type="password" id="password-input" placeholder="Wpisz hasło dostępu" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-pink-500">
+            <button onclick="checkPassword()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 rounded-lg transition">Wejdź</button>
+            <p id="login-error" class="text-red-500 text-sm mt-2 hidden">Niepoprawne hasło!</p>
+        </div>
+    </div>
+
+    <!-- GŁÓWNA APLIKACJA (ukryta przed zalogowaniem) -->
+    <div id="app-screen" class="hidden">
+        <!-- Nagłówek -->
+        <header class="bg-white shadow-sm sticky top-0 z-10">
+            <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-pink-600 tracking-wide">📸 Nasz Pamiętnik</h1>
+                <button onclick="logout()" class="text-sm text-gray-500 hover:text-gray-700">Wyloguj</button>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto px-4 py-8">
+            <!-- Formularz dodawania nowego wspomnienia -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Dodaj nowe wspomnienie</h2>
+                <form id="memory-form" onsubmit="saveMemory(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Tytuł / Miejsce</label>
+                        <input type="text" id="title" required placeholder="np. Wakacje w Rzymie" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Opis / Co się działo?</label>
+                        <textarea id="description" rows="3" required placeholder="Napisz coś więcej o tym dniu..." class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Wybierz zdjęcie</label>
+                        <input type="file" id="photo" accept="image/*" required class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100">
+                    </div>
+                    <button type="submit" id="submit-btn" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2.5 rounded-xl transition shadow-sm">
+                        Zapisz wspomnienie ✨
+                    </button>
+                </form>
+            </div>
+
+            <!-- Galeria wspomnień -->
+            <h2 class="text-xl font-bold text-gray-800 mb-6">Nasza Oś Czasu</h2>
+            <div id="memories-grid" class="grid md:grid-cols-2 gap-6">
+                <p id="loading-text" class="text-gray-500 italic">Ładowanie wspomnień...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- KONFIGURACJA I LOGIKA JS -->
+    <script>
+        // === 1. USTAW SWOJE DANE Z SUPABASE I HASŁO ===
+        const SUPABASE_URL = "https://supabase.co"; 
+        const SUPABASE_ANON_KEY = "TUTAJ_WLEP_SWÓJ_SKOPIOWANY_KLUCZ_ANON";
+        const USTAWIENIE_HASLA = "nasze2026"; // To jest hasło do Twojej strony. Możesz je zmienić na inne!
+
+        // Inicjalizacja Supabase
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // === 2. OBSŁUGA LOGOWANIA ===
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            if (input === USTAWIENIE_HASLA) {
+                localStorage.setItem('isLoggedIn', 'true');
+                showApp();
+            } else {
+                const error = document.getElementById('login-error');
+                error.classList.remove('hidden');
+            }
+        }
+
+        function showApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            fetchMemories();
+        }
+
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            location.reload();
+        }
+
+        if (localStorage.getItem('isLoggedIn') === 'true') {
+            showApp();
+        }
+
+        // === 3. POBIERANIE WSPOMNIEŃ Z BAZY DANYCH ===
+        async function fetchMemories() {
+            const grid = document.getElementById('memories-grid');
+            
+            const { data, error } = await supabase
+                .from('wspomnienia')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Błąd pobierania:", error);
+                grid.innerHTML = "<p class='text-red-500'>Nie udało się załadować wspomnień.</p>";
+                return;
+            }
+
+            if (data.length === 0) {
+                grid.innerHTML = "<p class='text-gray-500 italic col-span-2 text-center py-8'>Brak wspomnień. Dodaj pierwsze powyżej! 🚀</p>";
+                return;
+            }
+
+            grid.innerHTML = data.map(memory => `
+                <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col">
+                    <img src="${memory.foto_url}" alt="${memory.tytul}" class="w-full h-64 object-cover">
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-800 mb-2">${memory.tytul}</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed">${memory.opis}</p>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-4">
+                            Dodano: ${new Date(memory.created_at).toLocaleDateString('pl-PL')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // === 4. ZAPISYWANIE NOWEGO WSPOMNIENIA ===
+        async function saveMemory(event) {
+            event.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerText = "Zapisywanie... ⏳";
+
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const fileInput = document.getElementById('photo');
+            const file = fileInput.files[0];
+
+            try {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}.${fileExt}`;
+                
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('zdjecia')
+                    .upload(fileName, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data: urlData } = supabase.storage
+                    .from('zdjecia')
+                    .getPublicUrl(fileName);
+                
+                const fotoUrl = urlData.publicUrl;
+
+                const { error: insertError } = await supabase
+                    .from('wspomnienia')
+                    .insert([{ tytul: title, opis: description, foto_url: fotoUrl }]);
+
+                if (insertError) throw insertError;
+
+                document.getElementById('memory-form').reset();
+                fetchMemories();
+                alert("Wspomnienie dodane pomyślnie! 🎉");
+
+            } catch (error) {
+                console.error("Coś poszło nie tak:", error);
+                alert("Wystąpił błąd podczas zapisywania: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Zapisz wspomnienie ✨";
+            }
+        }
+    </script>
+</body>
+</html>
