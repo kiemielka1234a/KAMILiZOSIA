@@ -1,12 +1,12 @@
-    <!DOCTYPE html>
+      <!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nasze Wspomnienia</title>
-    <!-- Stabilny i działający link do wyglądu witryny -->
-    <link href="https://cloudflare.com" rel="stylesheet">
-    <script src="https://jsdelivr.net"></script>
+    <!-- Pełne, niezależne linki ładowane przed aplikacją -->
+    <link href="https://cloudflare.com" rel="stylesheet" type="text/css">
+    <script src="https://unpkg.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
 
@@ -63,7 +63,13 @@
         const SUPABASE_ANON_KEY = "sb_publishable_dQexV7z7D1JcrbNlzWhUWQ_VB-Vaq5g";
         const USTAWIENIE_HASLA = "nasze2026"; 
 
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Bezpieczna inicjalizacja po pełnym wczytaniu skryptów
+        let supabase;
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch(e) {
+            console.error("Supabase load error", e);
+        }
 
         function checkPassword() {
             const input = document.getElementById('password-input').value;
@@ -91,6 +97,7 @@
         }
 
         async function fetchMemories() {
+            if (!supabase) return;
             const grid = document.getElementById('memories-grid');
             const { data, error } = await supabase.from('wspomnienia').select('*').order('created_at', { ascending: false });
 
@@ -121,6 +128,10 @@
 
         async function saveMemory(event) {
             event.preventDefault();
+            if (!supabase) {
+                alert("Aplikacja Supabase nie załadowała się poprawnie. Odśwież stronę.");
+                return;
+            }
             const btn = document.getElementById('submit-btn');
             btn.disabled = true;
             btn.innerText = "Zapisywanie... ⏳";
@@ -128,10 +139,10 @@
             const title = document.getElementById('title').value;
             const description = document.getElementById('description').value;
             const fileInput = document.getElementById('photo');
-            const file = fileInput.files[0]; // Zabezpieczenie przed błędem split
+            const file = fileInput.files[0];
 
             if (!file) {
-                alert("Proszę wybrać plik graficzny!");
+                alert("Wybierz zdjęcie!");
                 btn.disabled = false;
                 btn.innerText = "Zapisz wspomnienie ✨";
                 return;
@@ -152,9 +163,9 @@
 
                 document.getElementById('memory-form').reset();
                 fetchMemories();
-                alert("Wspomnienie dodane pomyślnie! 🎉");
+                alert("Wspomnienie dodane! 🎉");
             } catch (error) {
-                alert("Błąd zapisu: " + error.message);
+                alert("Błąd: " + error.message);
             } finally {
                 btn.disabled = false;
                 btn.innerText = "Zapisz wspomnienie ✨";
@@ -163,12 +174,3 @@
     </script>
 </body>
 </html>
-";
-            
-                
-
-                
-            
-        
-    
-
